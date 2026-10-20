@@ -5003,6 +5003,7 @@ version = "0.13.1"
 dependencies = [
  "craft-ui",
  "egui",
+ "egui-wgpu",
  "egui_extras",
  "egui_kittest",
  "image",
