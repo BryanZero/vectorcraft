@@ -424,6 +424,44 @@ fn nonisolated_blending_group_requires_fallback_but_an_isolated_one_prepares() {
 }
 
 #[test]
+fn a_leaf_whose_fill_blends_under_object_opacity_requires_fallback() {
+    // A Multiply fill and a stroke under 50% object opacity: the fill must blend with the art
+    // below, which the CPU reaches through a backdrop copy and a GPU layer can't.
+    let mut doc = Document::new(100.0, 100.0);
+    let backdrop = rect(&mut doc, Rect::new(0.0, 0.0, 100.0, 100.0), Paint::solid(Color::rgb(0.0, 0.0, 1.0)));
+    insert(&mut doc, backdrop);
+    let mut leaf = Node::path(
+        doc.alloc_id(),
+        shapes::rectangle(Rect::new(10.0, 10.0, 80.0, 80.0)),
+        Appearance::basic(Paint::solid(Color::rgb(1.0, 0.0, 0.0)), Paint::solid(Color::BLACK), 4.0),
+    );
+    if let Some(AppearanceItem::Fill(fill)) = leaf.appearance.items.first_mut() {
+        fill.blend = BlendMode::Multiply;
+    }
+    leaf.opacity = 0.5;
+    let prepare = |leaf: &Node| {
+        let mut doc = doc.clone();
+        insert(&mut doc, leaf.clone());
+        Renderer::new().prepare_gpu(&doc, 100, 100, Affine::IDENTITY, &RenderOptions::default())
+    };
+    assert!(prepare(&leaf).is_err());
+    let mut screen = leaf.clone();
+    screen.opacity = 1.0;
+    screen.blend = BlendMode::Screen;
+    assert!(prepare(&screen).is_err());
+    let mut isolated = leaf.clone();
+    isolated.isolate = true;
+    assert!(prepare(&isolated).is_ok());
+    // Opaque, or with the fill alone (its opacity folds into the paint), it blends inline.
+    let mut opaque = leaf.clone();
+    opaque.opacity = 1.0;
+    assert!(prepare(&opaque).is_ok());
+    let mut alone = leaf;
+    alone.appearance.items.truncate(1);
+    assert!(prepare(&alone).is_ok());
+}
+
+#[test]
 fn malicious_dashes_and_gradient_values_return_fallback() {
     use vectorcraft_doc::Dash;
     let mut doc = Document::new(100.0, 100.0);

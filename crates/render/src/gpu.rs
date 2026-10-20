@@ -418,9 +418,10 @@ impl Preparation<'_> {
         {
             return Err(format!("object {} needs CPU compositing", node.id));
         }
-        // Non-isolated blending groups depend on the backdrop and cannot be replaced by a
-        // transparent offscreen layer. Plain groups with no opacity/blend layer remain inline.
-        let container = matches!(node.kind, NodeKind::Layer { .. } | NodeKind::Group { .. });
+        // Non-isolated blending objects depend on the backdrop and cannot be replaced by a
+        // transparent offscreen layer: a group whose members blend, or a leaf whose fills and
+        // strokes do (e.g. a Multiply fill under 50% object opacity). The CPU draws them over a
+        // copy of the backdrop. Objects with no opacity/blend layer remain inline.
         let fold = node.opacity < 1.0
             && node.blend == BlendMode::Normal
             && !node.isolate
@@ -430,8 +431,8 @@ impl Preparation<'_> {
         self.fold_alpha = if fold { node.opacity } else { 1.0 };
         // A masked image needs its own layer so the mask cannot erase the backdrop.
         let layered = !fold && node.opacity < 1.0 || node.blend != BlendMode::Normal || node.isolate || mask.is_some();
-        if container && layered && !node.isolate && self.renderer.blends_through(node) {
-            return Err("backdrop-dependent groups need CPU rendering".into());
+        if layered && !node.isolate && self.renderer.blends_through(node) {
+            return Err("backdrop-dependent blending needs CPU rendering".into());
         }
         if layered {
             self.push(node.opacity, node.blend, None);

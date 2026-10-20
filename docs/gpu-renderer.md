@@ -1,6 +1,6 @@
 # Experimental GPU canvas
 
-> **Last updated:** 2026-10-18 · **Status:** native opt-in prototype; broader rendering and platform validation remain open.
+> **Last updated:** 2026-10-20 · **Status:** native opt-in prototype; broader rendering and platform validation remain open.
 
 Build the desktop app with `cargo build --release --locked -p vectorcraft --features gpu-canvas`.
 In Preferences › Performance › GPU Performance, select Canvas Renderer › GPU (Experimental).
@@ -17,7 +17,8 @@ and image decoding remain shared CPU preparation work. Aligned image opacity mas
 
 Nested/effect-heavy patterns, meshes, symbols, inline graphics, general masks/knockouts, live effects, complex strokes and
 container appearances still select the existing CPU renderer for the **whole frame**. So do
-backdrop-dependent non-isolated groups that need an opacity/blend layer, proof/separation,
+backdrop-dependent non-isolated objects that need an opacity/blend layer (groups whose members
+blend, and paths, compound paths or type whose fills or strokes blend), proof/separation,
 overprint, outline and other unsupported preview modes. This is an opt-in implementation with
 conservative fallback, not full GPU Preview parity.
 
@@ -221,6 +222,7 @@ selection remain open. Standard CPU exports, printing and headless MCP use their
 
 | Date | Change |
 |---|---|
+| 2026-10-20 | Fall back to CPU for leaf objects whose fills or strokes blend under an object opacity/blend layer, as for groups (review on #2993). |
 | 2026-10-18 | Clip artboards to the view and cull off-screen text by fresh glyph bounds, so deep zoom stays on GPU; use nearest filtering for Pixel Preview. |
 | 2026-10-18 | Reuse renderer pipelines and checked image-atlas allocations while panning; accept compatible intermediate pan frames. Distinguish Plug-ins & Scratch Disks from Performance in Preferences. |
 | 2026-10-18 | Add cached aligned image-mask resources with GPU luminance composition and a strict opaque-path knockout subset; preserve CPU fallback for other semantics. |
